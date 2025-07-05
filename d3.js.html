@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <title>KEI Indicator</title>
+  <script src="https://d3js.org/d3.v7.min.js"></script>
+  <style>
+    html, body {
+      margin: 0;
+      padding: 0;
+      background: white;
+      font-family: 'Segoe UI', sans-serif;
+      height: 100%;
+    }
+
+    #container {
+      width: 100%;
+      max-width: 800px;
+      margin: auto;
+      padding: 20px;
+      background: white;
+    }
+
+    .tooltip {
+      position: absolute;
+      background: white;
+      border: 1px solid #ccc;
+      border-radius: 6px;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+      padding: 10px;
+      font-size: 13px;
+      pointer-events: none;
+      opacity: 0;
+      transition: opacity 0.2s ease;
+    }
+
+    svg {
+      width: 100%;
+      height: auto;
+    }
+
+    .center-title {
+      font-size: 16px;
+      fill: #222;
+      font-weight: bold;
+      text-anchor: middle;
+    }
+
+    .label {
+      font-size: 11px;
+      fill: #333;
+      pointer-events: none;
+    }
+
+    .guide-circle {
+      fill: none;
+      stroke: #ddd;
+      stroke-width: 1;
+    }
+  </style>
+</head>
+<body>
+<div id="container">
+  <svg id="sdg-chart" viewBox="0 0 640 640" preserveAspectRatio="xMidYMid meet">
+    <defs>
+      <!-- 자연스러운 그린빛 원형 그라디언트 -->
+      <radialGradient id="green-glow" cx="50%" cy="50%" r="60%">
+        <stop offset="0%" stop-color="#4caf50" stop-opacity="0.12" />
+        <stop offset="100%" stop-color="#4caf50" stop-opacity="0" />
+      </radialGradient>
+    </defs>
+  </svg>
+  <div id="tooltip" class="tooltip"></div>
+</div>
+
+<script>
+  const sdgs = [
+    "빈곤 퇴치", "기아 종식", "건강 및 웰빙", "양질의 교육", "성평등",
+    "깨끗한 물과 위생", "깨끗한 에너지", "양질의 일자리", "산업·혁신·인프라",
+    "불평등 감소", "지속가능한 도시", "지속가능한 소비", "기후 행동",
+    "해양 생태계", "육상 생태계", "평화와 정의", "글로벌 파트너십"
+  ];
+
+  const colors = [
+    "#e5243b", "#dda63a", "#4c9f38", "#c5192d", "#ff3a21",
+    "#26bde2", "#fcc30b", "#a21942", "#fd6925", "#dd1367",
+    "#fd9d24", "#bf8b2e", "#3f7e44", "#0a97d9", "#56c02b",
+    "#00689d", "#19486a"
+  ];
+
+  const data = sdgs.map((label, i) => ({
+    label,
+    value: Math.floor(Math.random() * 100),
+    color: colors[i]
+  }));
+
+  const width = 640;
+  const height = 640;
+  const innerRadius = 60;
+  const outerRadius = 240;
+
+  const svg = d3.select("#sdg-chart")
+    .append("g")
+    .attr("transform", `translate(${width / 2}, ${height / 2})`);
+
+  const angle = d3.scaleLinear()
+    .domain([0, data.length])
+    .range([0, 2 * Math.PI]);
+
+  const radius = d3.scaleLinear()
+    .domain([0, 100])
+    .range([innerRadius, outerRadius]);
+
+  const arc = d3.arc()
+    .innerRadius(innerRadius)
+    .outerRadius(d => radius(d.value))
+    .startAngle((d, i) => angle(i))
+    .endAngle((d, i) => angle(i + 1))
+    .padAngle(0.015)
+    .padRadius(innerRadius);
+
+  const tooltip = d3.select("#tooltip");
+
+  // 중심 배경 원 (환경 느낌)
+  svg.append("circle")
+    .attr("r", innerRadius + 40)
+    .attr("fill", "url(#green-glow)");
+
+  // 외곽 기준 원
+  svg.append("circle")
+    .attr("class", "guide-circle")
+    .attr("r", outerRadius)
+    .attr("stroke-dasharray", "4 4");
+
+  // 막대들
+  svg.selectAll("path")
+    .data(data)
+    .enter()
+    .append("path")
+    .attr("d", arc)
+    .attr("fill", d => d.color)
+    .attr("stroke", "#fff")
+    .attr("class", "arc")
+    .style("cursor", "pointer")
+    .style("opacity", 1)
+    .on("mousemove", function(event, d) {
+      d3.selectAll(".arc").style("opacity", 0.2);
+      d3.select(this).style("opacity", 1);
+      tooltip
+        .html(`<strong>${d.label}</strong><br>${d.value}% 달성`)
+        .style("left", (event.pageX + 12) + "px")
+        .style("top", (event.pageY - 20) + "px")
+        .style("opacity", 1);
+    })
+    .on("mouseleave", function() {
+      d3.selectAll(".arc").style("opacity", 1);
+      tooltip.style("opacity", 0);
+    });
+
+  // 라벨
+  svg.selectAll("text.label")
+    .data(data)
+    .enter()
+    .append("text")
+    .attr("class", "label")
+    .attr("transform", (d, i) => {
+      const a = angle(i + 0.5) - Math.PI / 2;
+      const r = outerRadius + 26;
+      return `translate(${Math.cos(a) * r}, ${Math.sin(a) * r})`;
+    })
+    .attr("text-anchor", "middle")
+    .text((d, i) => `${i + 1}. ${d.label}`);
+
+  // 중앙 텍스트: KEI Indicator (두 줄)
+  svg.append("text")
+    .attr("class", "center-title")
+    .attr("y", -8)
+    .text("KEI");
+  svg.append("text")
+    .attr("class", "center-title")
+    .attr("y", 14)
+    .text("Indicator");
+</script>
+</body>
+</html>
